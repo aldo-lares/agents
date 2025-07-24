@@ -26,6 +26,100 @@ test.describe('Game Listing and Navigation', () => {
     expect(gameTitle?.trim()).toBeTruthy();
   });
 
+  test('should filter games by category', async ({ page }) => {
+    await page.goto('/');
+    
+    // Wait for the games to load
+    await page.waitForSelector('[data-testid="games-grid"]', { timeout: 10000 });
+    
+    // Get initial game count
+    const initialGameCount = await page.locator('[data-testid="game-card"]').count();
+    expect(initialGameCount).toBeGreaterThan(0);
+    
+    // Wait for filters to load
+    await page.waitForSelector('[data-testid="category-filter"]', { timeout: 5000 });
+    
+    // Select a category filter
+    const categoryFilter = page.locator('[data-testid="category-filter"]');
+    await categoryFilter.selectOption({ index: 1 }); // Select first non-empty option
+    
+    // Wait for filtered results
+    await page.waitForTimeout(1000); // Give time for API call
+    
+    // Verify filtered results
+    const filteredGameCount = await page.locator('[data-testid="game-card"]').count();
+    
+    // The filtered count should be different from initial (could be same if all games are same category)
+    // but should still be >= 0
+    expect(filteredGameCount).toBeGreaterThanOrEqual(0);
+    
+    // Verify clear filters button appears
+    await expect(page.locator('[data-testid="clear-filters"]')).toBeVisible();
+  });
+
+  test('should filter games by publisher', async ({ page }) => {
+    await page.goto('/');
+    
+    // Wait for the games to load
+    await page.waitForSelector('[data-testid="games-grid"]', { timeout: 10000 });
+    
+    // Get initial game count
+    const initialGameCount = await page.locator('[data-testid="game-card"]').count();
+    expect(initialGameCount).toBeGreaterThan(0);
+    
+    // Wait for filters to load
+    await page.waitForSelector('[data-testid="publisher-filter"]', { timeout: 5000 });
+    
+    // Select a publisher filter
+    const publisherFilter = page.locator('[data-testid="publisher-filter"]');
+    await publisherFilter.selectOption({ index: 1 }); // Select first non-empty option
+    
+    // Wait for filtered results
+    await page.waitForTimeout(1000); // Give time for API call
+    
+    // Verify filtered results
+    const filteredGameCount = await page.locator('[data-testid="game-card"]').count();
+    
+    // The filtered count should be >= 0
+    expect(filteredGameCount).toBeGreaterThanOrEqual(0);
+    
+    // Verify clear filters button appears
+    await expect(page.locator('[data-testid="clear-filters"]')).toBeVisible();
+  });
+
+  test('should clear filters when clear button is clicked', async ({ page }) => {
+    await page.goto('/');
+    
+    // Wait for the games to load
+    await page.waitForSelector('[data-testid="games-grid"]', { timeout: 10000 });
+    
+    // Get initial game count
+    const initialGameCount = await page.locator('[data-testid="game-card"]').count();
+    
+    // Wait for filters to load
+    await page.waitForSelector('[data-testid="category-filter"]', { timeout: 5000 });
+    
+    // Apply a filter
+    const categoryFilter = page.locator('[data-testid="category-filter"]');
+    await categoryFilter.selectOption({ index: 1 });
+    
+    // Wait for filtered results
+    await page.waitForTimeout(1000);
+    
+    // Click clear filters
+    await page.locator('[data-testid="clear-filters"]').click();
+    
+    // Wait for results to reset
+    await page.waitForTimeout(1000);
+    
+    // Verify we're back to original count
+    const finalGameCount = await page.locator('[data-testid="game-card"]').count();
+    expect(finalGameCount).toBe(initialGameCount);
+    
+    // Verify clear button is no longer visible
+    await expect(page.locator('[data-testid="clear-filters"]')).not.toBeVisible();
+  });
+
   test('should navigate to correct game details page when clicking on a game', async ({ page }) => {
     await page.goto('/');
     

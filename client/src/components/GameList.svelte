@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import GameFilters from './GameFilters.svelte';
 
     interface Game {
         id: number;
@@ -7,16 +8,81 @@
         description: string;
         publisher_name?: string;
         category_name?: string;
+        starRating?: number;
+        publisher?: { name: string };
+        category?: { name: string };
     }
 
     export let games: Game[] = [];
     let loading = true;
     let error: string | null = null;
+    let selectedCategoryId: number | null = null;
+    let selectedPublisherId: number | null = null;
 
-    const fetchGames = async () => {
+    /**
+     * Get URL parameters for filtering
+     */
+    const getUrlParams = () => {
+        if (typeof window !== 'undefined') {
+            const urlParams = new URLSearchParams(window.location.search);
+            const categoryId = urlParams.get('category_id');
+            const publisherId = urlParams.get('publisher_id');
+            
+            return {
+                categoryId: categoryId ? parseInt(categoryId) : null,
+                publisherId: publisherId ? parseInt(publisherId) : null
+            };
+        }
+        return { categoryId: null, publisherId: null };
+    };
+
+    /**
+     * Update URL with current filter parameters
+     */
+    const updateUrlParams = (categoryId: number | null, publisherId: number | null) => {
+        if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            
+            if (categoryId) {
+                url.searchParams.set('category_id', categoryId.toString());
+            } else {
+                url.searchParams.delete('category_id');
+            }
+            
+            if (publisherId) {
+                url.searchParams.set('publisher_id', publisherId.toString());
+            } else {
+                url.searchParams.delete('publisher_id');
+            }
+            
+            // Update URL without reloading the page
+            window.history.replaceState({}, '', url.toString());
+        }
+    };
+
+    /**
+     * Fetch games from the API with optional filtering
+     * @param categoryId - Optional category ID to filter by
+     * @param publisherId - Optional publisher ID to filter by
+     */
+    const fetchGames = async (categoryId: number | null = null, publisherId: number | null = null) => {
         loading = true;
+        error = null;
+        
         try {
-            const response = await fetch('/api/games');
+            // Build query parameters
+            const params = new URLSearchParams();
+            if (categoryId) {
+                params.append('category_id', categoryId.toString());
+            }
+            if (publisherId) {
+                params.append('publisher_id', publisherId.toString());
+            }
+            
+            const queryString = params.toString();
+            const url = queryString ? `/api/games?${queryString}` : '/api/games';
+            
+            const response = await fetch(url);
             if(response.ok) {
                 games = await response.json();
             } else {
@@ -29,13 +95,49 @@
         }
     };
 
+    const handleFilterChange = (event: CustomEvent<{ categoryId: number | null; publisherId: number | null }>) => {
+        selectedCategoryId = event.detail.categoryId;
+        selectedPublisherId = event.detail.publisherId;
+        
+        // Update URL with new filter parameters
+        updateUrlParams(selectedCategoryId, selectedPublisherId);
+        
+        // Fetch filtered games
+        fetchGames(selectedCategoryId, selectedPublisherId);
+    };
+
+    /**
+     * Render star rating as visual stars
+     * @param rating - The star rating (0-5)
+     * @returns HTML string for star display
+     */
+    const renderStarRating = (rating: number): string => {
+        const fullStars = Math.floor(rating);
+        const hasHalfStar = rating % 1 !== 0;
+        const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+        
+        return '★'.repeat(fullStars) + 
+               (hasHalfStar ? '☆' : '') + 
+               '☆'.repeat(emptyStars);
+    };
+
     onMount(() => {
-        fetchGames();
+        // Read initial filter state from URL
+        const urlParams = getUrlParams();
+        selectedCategoryId = urlParams.categoryId;
+        selectedPublisherId = urlParams.publisherId;
+        
+        // Fetch games with initial filters
+        fetchGames(selectedCategoryId, selectedPublisherId);
     });
 </script>
 
 <div>
-    <h2 class="text-2xl font-medium mb-6 text-slate-100">Featured Games</h2>
+    <GameFilters 
+        bind:selectedCategoryId 
+        bind:selectedPublisherId 
+        on:filterChange={handleFilterChange}
+    />
     
     {#if loading}
         <!-- loading animation -->
@@ -81,22 +183,31 @@
                         <div class="relative z-10">
                             <h3 class="text-xl font-semibold text-slate-100 mb-2 group-hover:text-blue-400 transition-colors" data-testid="game-title">{game.title}</h3>
                             
-                            {#if game.category_name || game.publisher_name}
+                            {#if (game.category?.name || game.category_name) || (game.publisher?.name || game.publisher_name)}
                                 <div class="flex gap-2 mb-3">
-                                    {#if game.category_name}
+                                    {#if game.category?.name || game.category_name}
                                         <span class="text-xs font-medium px-2.5 py-0.5 rounded bg-blue-900/60 text-blue-300" data-testid="game-category">
-                                            {game.category_name}
+                                            {game.category?.name || game.category_name}
                                         </span>
                                     {/if}
-                                    {#if game.publisher_name}
+                                    {#if game.publisher?.name || game.publisher_name}
                                         <span class="text-xs font-medium px-2.5 py-0.5 rounded bg-purple-900/60 text-purple-300" data-testid="game-publisher">
-                                            {game.publisher_name}
+                                            {game.publisher?.name || game.publisher_name}
                                         </span>
                                     {/if}
                                 </div>
                             {/if}
                             
                             <p class="text-slate-400 mb-4 text-sm line-clamp-2" data-testid="game-description">{game.description}</p>
+                            
+                            {#if game.starRating}
+                                <div class="flex items-center gap-2 mb-4">
+                                    <span class="text-yellow-400 text-sm" data-testid="game-rating">
+                                        {@html renderStarRating(game.starRating)}
+                                    </span>
+                                    <span class="text-slate-400 text-xs">({game.starRating})</span>
+                                </div>
+                            {/if}
                             
                             <div class="mt-4 text-sm text-blue-400 font-medium flex items-center">
                                 <span>View details</span>
