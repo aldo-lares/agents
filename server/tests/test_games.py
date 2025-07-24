@@ -168,5 +168,125 @@ class TestGamesRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(data['error'], "Game not found")
 
+    def test_filter_games_by_category(self) -> None:
+        """Test filtering games by category ID"""
+        # Get the category ID for "Strategy" 
+        response = self.client.get(self.GAMES_API_PATH)
+        all_games = self._get_response_data(response)
+        strategy_category_id = None
+        
+        for game in all_games:
+            if game['category']['name'] == 'Strategy':
+                strategy_category_id = game['category']['id']
+                break
+                
+        self.assertIsNotNone(strategy_category_id)
+        
+        # Act - Filter by category
+        response = self.client.get(f'{self.GAMES_API_PATH}?category_id={strategy_category_id}')
+        filtered_games = self._get_response_data(response)
+        
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(filtered_games), 1)  # Only one Strategy game in test data
+        self.assertEqual(filtered_games[0]['category']['name'], 'Strategy')
+        self.assertEqual(filtered_games[0]['title'], 'Pipeline Panic')
+
+    def test_filter_games_by_publisher(self) -> None:
+        """Test filtering games by publisher ID"""
+        # Get the publisher ID for "Scrum Masters"
+        response = self.client.get(self.GAMES_API_PATH)
+        all_games = self._get_response_data(response)
+        scrum_masters_publisher_id = None
+        
+        for game in all_games:
+            if game['publisher']['name'] == 'Scrum Masters':
+                scrum_masters_publisher_id = game['publisher']['id']
+                break
+                
+        self.assertIsNotNone(scrum_masters_publisher_id)
+        
+        # Act - Filter by publisher
+        response = self.client.get(f'{self.GAMES_API_PATH}?publisher_id={scrum_masters_publisher_id}')
+        filtered_games = self._get_response_data(response)
+        
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(filtered_games), 1)  # Only one Scrum Masters game in test data
+        self.assertEqual(filtered_games[0]['publisher']['name'], 'Scrum Masters')
+        self.assertEqual(filtered_games[0]['title'], 'Agile Adventures')
+
+    def test_filter_games_by_both_category_and_publisher(self) -> None:
+        """Test filtering games by both category and publisher ID"""
+        # Get the IDs for Strategy category and DevGames Inc publisher
+        response = self.client.get(self.GAMES_API_PATH)
+        all_games = self._get_response_data(response)
+        
+        strategy_category_id = None
+        devgames_publisher_id = None
+        
+        for game in all_games:
+            if game['category']['name'] == 'Strategy':
+                strategy_category_id = game['category']['id']
+            if game['publisher']['name'] == 'DevGames Inc':
+                devgames_publisher_id = game['publisher']['id']
+                
+        self.assertIsNotNone(strategy_category_id)
+        self.assertIsNotNone(devgames_publisher_id)
+        
+        # Act - Filter by both category and publisher
+        response = self.client.get(f'{self.GAMES_API_PATH}?category_id={strategy_category_id}&publisher_id={devgames_publisher_id}')
+        filtered_games = self._get_response_data(response)
+        
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(filtered_games), 1)  # Only Pipeline Panic matches both criteria
+        self.assertEqual(filtered_games[0]['title'], 'Pipeline Panic')
+        self.assertEqual(filtered_games[0]['category']['name'], 'Strategy')
+        self.assertEqual(filtered_games[0]['publisher']['name'], 'DevGames Inc')
+
+    def test_filter_games_no_results(self) -> None:
+        """Test filtering games with combination that returns no results"""
+        # Get IDs for mismatched category and publisher
+        response = self.client.get(self.GAMES_API_PATH)
+        all_games = self._get_response_data(response)
+        
+        strategy_category_id = None
+        scrum_masters_publisher_id = None
+        
+        for game in all_games:
+            if game['category']['name'] == 'Strategy':
+                strategy_category_id = game['category']['id']
+            if game['publisher']['name'] == 'Scrum Masters':
+                scrum_masters_publisher_id = game['publisher']['id']
+                
+        # Act - Filter by Strategy category + Scrum Masters publisher (no game matches)
+        response = self.client.get(f'{self.GAMES_API_PATH}?category_id={strategy_category_id}&publisher_id={scrum_masters_publisher_id}')
+        filtered_games = self._get_response_data(response)
+        
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(filtered_games), 0)  # No games match this combination
+
+    def test_filter_games_invalid_category_id(self) -> None:
+        """Test filtering games with invalid category ID"""
+        # Act - Filter by non-existent category ID
+        response = self.client.get(f'{self.GAMES_API_PATH}?category_id=999')
+        filtered_games = self._get_response_data(response)
+        
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(filtered_games), 0)  # No games match non-existent category
+
+    def test_filter_games_invalid_publisher_id(self) -> None:
+        """Test filtering games with invalid publisher ID"""
+        # Act - Filter by non-existent publisher ID
+        response = self.client.get(f'{self.GAMES_API_PATH}?publisher_id=999')
+        filtered_games = self._get_response_data(response)
+        
+        # Assert
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(filtered_games), 0)  # No games match non-existent publisher
+
 if __name__ == '__main__':
     unittest.main()
