@@ -19,7 +19,13 @@ def init_db(app, connection_string=None, testing=False):
 
 def __get_connection_string():
     """
-    Returns the connection string for the database.
+    Generates the SQLite database connection string for the application.
+    
+    Creates the data directory if it doesn't exist and returns the full path
+    to the SQLite database file.
+    
+    Returns:
+        str: SQLite connection string for the database
     """
     # Get the server directory
     server_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
